@@ -1,0 +1,404 @@
+#!/usr/bin/perl
+#Copyright (c) 2008, Zane C. Bowers
+#All rights reserved.
+#
+#Redistribution and use in source and binary forms, with or without modification,
+#are permitted provided that the following conditions are met:
+#
+#   * Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#   * Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+#THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+#ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+#WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+#INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+#BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+#DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+#THE POSSIBILITY OF SUCH DAMAGE.
+
+use DateTime::Event::Cron;
+use DateTime::Duration;
+use DateTime::Format::Strptime;
+use strict;
+use warnings;
+use Getopt::Std;
+use ZConf;
+
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+
+#version function
+sub main::VERSION_MESSAGE {
+	print "zccrontab 0.0.0\n";
+};
+
+#print help
+sub main::HELP_MESSAGE {
+	print "\n".
+		"-s <zconf set>  The zconf set to use.\n".
+		"-t <tab>  The tab to use.\n".
+		"-c  Create the config.\n".
+		"-l  Shows a tab.\n".
+		"-r  Removes a tab.\n".
+		"-e  Edits a tab.\n".
+		"-L  List tabs.\n".
+		"-a  Adds a tab.\n`";
+}
+
+#gets the options
+my %opts=();
+getopts('s:t:clreLa', \%opts);
+
+if (!defined($opts{t})) {
+	$opts{t}="default";
+}
+
+#inits zconf
+my $zconf = ZConf->new();
+if($zconf->{error}){
+	warn("zccrontab:1: Could not initiate ZConf. It failed with '".$zconf->{error}."'".
+		", '".$zconf->{errorString}."'");
+	exit 1;
+}
+
+#handles set checking
+if(defined($opts{s})){
+	if(!$zconf->setNameLegit($opts{s})){
+		warn("zccrontab:2: '".$opts{s}."' is not a legit ZConf set name");
+		exit 2;
+	}
+}else{
+	$opts{s}=$zconf->chooseSet("zccron");
+}
+
+#figures out if the config exists
+my $configExists = $zconf->configExists("zccron");
+
+my @sets;#holds the sets
+my $setExists=undef;
+if ($configExists){
+	@sets=$zconf->getAvailableSets("zccron");
+	if ($zconf->{error}) {
+		warn("zccrontab:4: Error retrieving available sets.");
+		exit 4;
+	}else{
+		my $setsInt=0;
+		while (defined($sets[$setsInt])) {
+			if ($sets[$setsInt] eq $opts{s}) {
+				$setExists=1;
+			}
+			$setsInt++;
+		}
+	}
+
+}
+
+if (defined($opts{c})){
+	#creates it if it does not exist
+	if (!$configExists) {
+		my $returned = $zconf->createConfig("zccron");
+		if($zconf->{error}){
+			warn("zccrontab:2: Could not create config.");
+			exit 2;
+		}
+	}
+
+	if ($setExists) {
+		warn("zccrontab:5: Set already exists.");
+		exit 5;
+	}
+
+	my $returned=$zconf->writeSetFromHash({config=>"zccron", set=>$opts{s}},{});
+	if ($zconf->{error}){
+		warn("zccrontab:6: Error writing new set. set='".$opts{s}."' error='".
+			 $zconf->{error}."'");
+		exit 6;
+	}
+
+	exit 0;
+}else{
+	if (!$configExists){
+	#exit as nothing beyond here can be done with out creating it
+		warn("zccrontab:3: Exiting as the config does not exist. Please use".
+			 " -c to create.");
+		exit 3;
+	}
+}
+
+#read the config
+$zconf->read({config=>"zccron", set=>$opts{s}});
+if($zconf->{error}){
+	warn("zccrontab:4: Could not read config. It failed with '".$zconf->{error}."'".
+		", '".$zconf->{errorString}."'.");
+	exit 4;
+}
+
+#sets the tab variable
+my $tab='tabs/'.$opts{t};
+
+#list the specified tab
+if (defined($opts{l})) {
+	if (defined($zconf->{conf}{zccron}{$tab})){
+		print $zconf->{conf}{zccron}{$tab};
+		exit 0;
+	}
+	warn("zccrontab:8: The specified tab, '".$opts{s}."' does not exist");
+	exit 8;
+}
+
+#lists the tabs
+if (defined($opts{L})) {
+	my @matched = $zconf->regexVarSearch("zccron", "^tabs/");
+	my $matchedInt=0;
+	while (defined($matched[$matchedInt])){
+		$matched[$matchedInt]=~s/^tabs\///;
+		print $matched[$matchedInt]."\n";
+		$matchedInt++;
+	}
+	exit 0;
+}
+
+#adds a tab
+if (defined($opts{a})){
+	if (defined($zconf->{conf}{zccron}{$tab})){
+		warn("zccrontab:9: Tab, '".$opts{t}."', already exists.");
+		exit 9;
+	}
+
+	#adds a tab
+	if(!$zconf->setVar("zccron", $tab, "")){
+		warn("zccrontab:10: Adding variable , '".$tab."' failed with '"
+			 .$zconf->{error}."', '".$zconf->{errorString}."'.");
+		exit 10;
+	}
+
+	#writes it
+	if(!$zconf->writeSetFromLoadedConfig({config=>"zccron"})){
+		warn("zccrontab:11: Writing from loaded, '".$tab."' failed with '"
+			 .$zconf->{error}."', '".$zconf->{errorString}."'.");
+		exit 11;
+	}
+
+	exit 0;
+}
+
+#removes a tab
+if (defined($opts{r})){
+	if (!defined($zconf->{conf}{zccron}{$tab})){
+		warn("zccrontab:8: Tab, '".$opts{t}."', does not exist.");
+		exit 8;
+	}
+
+	#delete it
+	my @deleted=$zconf->regexVarDel("zccron", "^".$tab.'$');
+	if($zconf->{error}){
+		warn("zccrontab:12: Could not delete tab. It failed with '".
+			 $zconf->{error}."', '".$zconf->{errorString}."'.");
+		exit 12;
+	}
+
+	#writes it
+	if(!$zconf->writeSetFromLoadedConfig({config=>"zccron"})){
+		warn("zccrontab:11: Writing from loaded, '".$tab."' failed with '"
+			 .$zconf->{error}."', '".$zconf->{errorString}."'.");
+		exit 11;
+	}
+
+	exit 0;
+}
+
+#edits a tab
+if (defined($opts{e})){
+	if (!defined($zconf->{conf}{zccron}{$tab})){
+		warn("zccrontab:8: Tab, '".$opts{t}."', does not exist.");
+		exit 8;
+	}
+
+	my $file='/tmp/'.rand(99999999999);
+
+	open(TAB, '>'.$file);
+	system('chmod go-rwx '.$file);
+	print TAB $zconf->{conf}{zccron}{$tab};
+	close(TAB);
+
+	system($ENV{EDITOR}." ".$file);
+	if ($?){
+		warn("zccrontab:13: Running the environmentally supplied editor, '".
+			 $ENV{EDITOR}."' failed with $$.");
+		exit 13;
+	}
+
+	open(TABREAD, $file);
+	my @lines=<TABREAD>;
+	close(TABREAD);
+
+	unlink($file);
+
+	$zconf->{conf}{zccron}{$tab}=join("", @lines);
+
+	#writes it
+	if(!$zconf->writeSetFromLoadedConfig({config=>"zccron"})){
+		warn("zccrontab:11: Writing from loaded, '".$tab."' failed with '"
+			 .$zconf->{error}."', '".$zconf->{errorString}."'.");
+		exit 11;
+	}
+
+	exit 0;
+}
+
+=head1 NAME
+
+comiccron - A cron like tool largely aimed at bringing up my web comics in the
+morning with a single command.
+
+=head1 SYNOPSIS
+
+comiccron [B<-s> <ZConf set>] B<-t> <tab> [B<-c>} [B<-l>] [B<-r>] [B<-e>] [B<-L>] [B<-a>]
+
+=head1 SWITCHES
+
+=head2 B<-s> <ZConf set>
+
+This is a optional switch to specify what ZConf set to use.
+
+=head2 B<-c>
+
+This creates a the 'zccron' config if it does not exist and if it does exist
+create the needed set.
+
+=head2 B<-t> <tab>
+
+The tab to operate on.
+
+=head2 B<-l>
+
+Shows the specified tab.
+
+=head2 B<-r>
+
+Removes the specified tab.
+
+=head2 B<-e>
+
+Edit the specified config.
+
+=head2 B<-L>
+
+List the various tabs.
+
+=head2 B<-a>
+
+Add a tab.
+
+=head1 ZConf Keys
+
+The keys for this are stored in the config 'zccron'.
+
+=head2 tabs/<tab>
+
+Any thing under tabs is considered a tab.
+
+=head1 ERROR CODES
+
+=head2 1
+
+ZConf initialization error.
+
+=head2 2
+
+Set name is non-existant.
+
+=head2 3
+
+The config does not exist. Use -c to i$matched[$matchedInt]nitiate it.
+
+=head2 4
+
+Unable to retrieve set information.
+
+=head2 5
+
+Set already exists.
+
+=head2 6
+
+ZConf write error.
+
+=head2 7
+
+ZConf read error.
+
+=head2 8
+
+The specified tab does not exist.
+
+=head2 9
+
+Tab already exists.
+
+=head2 10
+
+ZConf adding tab variable failed.
+
+=head2 11
+
+Writing variable added.
+
+=head2 12
+
+Error removing tab.
+
+=head2 13
+
+Error running $ENV{EDITOR}.
+
+=head1 AUTHOR
+
+Copyright (c) 2008, Zame C. Bowers <vvelox@vvelox.net>
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS` OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+=head1 Changelog
+
+=head2 2008-06-23/23:30
+
+Initial release.
+
+=head1 SCRIPT CATEGORIES
+
+Desktop
+
+=head1 OSNAMES
+
+any
+
+=head1 README
+
+zccron - A editor and manager for tabs for zccron.
+
+=cut
