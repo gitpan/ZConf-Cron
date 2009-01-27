@@ -253,12 +253,12 @@ if (defined($opts{e})){
 
 =head1 NAME
 
-comiccron - A cron like tool largely aimed at bringing up my web comics in the
+zccrontab - A cron like tool largely aimed at bringing up my web comics in the
 morning with a single command.
 
 =head1 SYNOPSIS
 
-comiccron [B<-s> <ZConf set>] B<-t> <tab> [B<-c>} [B<-l>] [B<-r>] [B<-e>] [B<-L>] [B<-a>]
+zccrontab [B<-s> <ZConf set>] B<-t> <tab> [B<-c>} [B<-l>] [B<-r>] [B<-e>] [B<-L>] [B<-a>]
 
 =head1 SWITCHES
 
