@@ -10,18 +10,13 @@ ZConf::Cron - Handles storing cron tabs in ZConf.
 
 =head1 VERSION
 
-Version 0.0.1
+Version 1.0.0
 
 =cut
 
-our $VERSION = '0.0.1';
-
+our $VERSION = '1.0.0';
 
 =head1 SYNOPSIS
-
-
-
-Perhaps a little code snippet.
 
     use ZConf::Cron;
 
@@ -88,6 +83,8 @@ sub create{
 	my $self=$_[0];
 	my $set=$_[1];
 
+	$self->errorblank;
+
 	#checks if it exists
 	my $configExists = $self->{zconf}->configExists("zccron");
 
@@ -129,7 +126,7 @@ sub delSet{
 	my $self=$_[0];
 	my $set=$_[1];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	my $returned=$self->{zconf}->delSet("zccron",$set);
 	if (defined($self->{zconf}->{error})){
@@ -160,7 +157,7 @@ sub delTab{
 	my $self=$_[0];
 	my $tab=$_[1];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	$self->{zconf}->regexVarDel("zccron", '^tabs/'.$tab.'$');
 	if (defined($self->{zconf}->{error})) {
@@ -187,7 +184,7 @@ This gets a list of of sets for the config 'cron'.
 sub getSets{
 	my $self=$_[0];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	my @sets=$self->{zconf}->getAvailableSets("zccron");
 	if ($self->{zconf}->{error}){
@@ -217,7 +214,7 @@ sub setSet{
 	my $self=$_[0];
 	my $set=$_[1];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	if (!defined($set)){
 		my $set=$self->{zconf}->chooseSet("zccron");
@@ -270,7 +267,7 @@ Gets a list of tabs for the current set.
 sub getTabs{
 	my $self=$_[0];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	my @matched = $self->{zconf}->regexVarSearch("zccron", "^tabs/");
 
@@ -298,7 +295,7 @@ sub readTab{
 	my $self=$_[0];
 	my $tab=$_[1];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	$tab='tabs/'.$tab;
 
@@ -326,7 +323,7 @@ This saves the currently loaded set.
 sub save{
 	my $self=$_[0];
 
-	$self->errorBlank();
+	$self->errorblank();
 
 	#tries to save it and error upon failure
 	if (!$self->{zconf}->writeSetFromLoadedConfig("zccron")){
@@ -364,6 +361,8 @@ sub writeTab{
 	my $tab=$_[1];
 	my $value=$_[2];
 
+	$self->errorblank;
+
 	if (!defined($value)){
 		warn("ZConf-Cron writeTab: No value specified for the value of the tab.");
 		$self->{error}=6;
@@ -387,8 +386,19 @@ sub writeTab{
 	return 1;
 }
 
+=head2 errorblank
+
+This blanks the error storage and is only meant for internal usage.
+
+It does the following.
+
+    $self->{error}=undef;
+    $self->{errorString}="";
+
+=cut
+
 #blanks the error flags
-sub errorBlank{
+sub errorblank{
 	my $self=$_[0];
 		
 	$self->{error}=undef;

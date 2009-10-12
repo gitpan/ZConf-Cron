@@ -253,8 +253,7 @@ if (defined($opts{e})){
 
 =head1 NAME
 
-zccrontab - A cron like tool largely aimed at bringing up my web comics in the
-morning with a single command.
+zccrontab - Edit crontabs stored in ZConf.
 
 =head1 SYNOPSIS
 
@@ -294,14 +293,6 @@ List the various tabs.
 =head2 B<-a>
 
 Add a tab.
-
-=head1 ZConf Keys
-
-The keys for this are stored in the config 'zccron'.
-
-=head2 tabs/<tab>
-
-Any thing under tabs is considered a tab.
 
 =head1 ERROR CODES
 

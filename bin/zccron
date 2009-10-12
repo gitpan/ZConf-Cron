@@ -175,14 +175,6 @@ You can have cron open opera or the like on a specific display by either switch
 or enviromental options, but it will always open it. This allows you to open it
 any time along the point it is active.
 
-=head1 ZConf Keys
-
-The keys for this are stored in the config 'zccron'.
-
-=head2 tabs/<tab>
-
-Any thing under tabs is considered a tab.
-
 =head1 ERROR CODES
 
 =head2 1

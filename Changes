@@ -1,6 +1,10 @@
 Revision history for ZConf-Cron
 
-0.0.0	2008-12-09/20:00
+1.0.0	2009-10-11/23:30
+		-Misc cleanups.
+		-Add ZConf::Cron::GUI.
+
+0.0.1	2008-12-09/20:00
 		-correct where it says comiccron in the zccrontab POD
 
 0.0.0    2008-12-09/10:00
