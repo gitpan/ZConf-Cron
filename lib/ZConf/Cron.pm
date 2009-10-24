@@ -10,11 +10,11 @@ ZConf::Cron - Handles storing cron tabs in ZConf.
 
 =head1 VERSION
 
-Version 1.0.0
+Version 1.0.1
 
 =cut
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 =head1 SYNOPSIS
 
@@ -32,14 +32,22 @@ Initiates the module. No arguements are currently taken.
 =cut
 
 sub new{
-	my $self={error=>undef, set=>undef};
+	my $self={error=>undef,
+			  set=>undef,
+			  perror=>undef,
+			  errorString=>'',
+			  zconfconfig=>'zccron',
+			  module=>'ZConf-Cron'};
 	bless $self;
+	my $function='function';
 
 	$self->{zconf}=ZConf->new();
 	if(defined($self->{zconf}->{error})){
-		warn("ZConf-Cron new:1: Could not initiate ZConf. It failed with '"
-			 .$self->{zconf}->{error}."', '".$self->{zconf}->{errorString}."'");
 		$self->{error}=1;
+		$self->{perror}=1;
+		$self->{errorString}="Could not initiate ZConf. It failed with '"
+		                     .$self->{zconf}->{error}."', '".$self->{zconf}->{errorString}."'";
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return $self;
 	}
 
@@ -82,8 +90,14 @@ Used for creating a specified set, or initializing.
 sub create{
 	my $self=$_[0];
 	my $set=$_[1];
+	my $function='create';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
+
 
 	#checks if it exists
 	my $configExists = $self->{zconf}->configExists("zccron");
@@ -91,17 +105,19 @@ sub create{
 	#creates the config if needed
 	if (!$configExists){
 		if ($self->{zconf}->createConfig('zccron')){
-			warn('ZConf-Cron create:8: Failed to create the ZConf config "zccron"');
+			$self->{errorString}='Failed to create the ZConf config "zccron"';
 			$self->{error}=8;
+			warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 			return undef;
 		}
 	}
 
 	my $returned=$self->{zconf}->writeSetFromHash({config=>"zccron", set=>$set},{});
 	if ($self->{zconf}->{error}){
-		warn('ZConf-Cron create:9: Failed to create set. set="'.$set.'" error="'.
-			 $self->{zconf}->{error}.'"');
+		$self->{errorString}='Failed to create set. set="'.$set.'" error="'.
+		                     $self->{zconf}->{error}.'"';
 		$self->{error}=9;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -125,14 +141,20 @@ This deletes a set.
 sub delSet{
 	my $self=$_[0];
 	my $set=$_[1];
+	my $function='delSet';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	my $returned=$self->{zconf}->delSet("zccron",$set);
-	if (defined($self->{zconf}->{error})){
-		warn('ZConf-Cron delSet:10: Failed to delete set. set="'.$set.'" error="'.
-			 $self->{zconf}->{error}.'"');
+	if ($self->{zconf}->{error}){
+		$self->{errorString}='Failed to delete set. set="'.$set.'" error="'.
+		                     $self->{zconf}->{error}.'"';
 		$self->{error}=10;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -156,14 +178,20 @@ This removes a tab.
 sub delTab{
 	my $self=$_[0];
 	my $tab=$_[1];
+	my $function='delTab';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	$self->{zconf}->regexVarDel("zccron", '^tabs/'.$tab.'$');
-	if (defined($self->{zconf}->{error})) {
-		warn('ZConf-Cron delTab:11: Failed to delete tab, "'.$tab.'", for the set, "'.
-			 $self->{zconf}->{set}{zccron}.'". error="'.$self->{zconf}->{error}.'"');
+	if ($self->{zconf}->{error}) {
+		$self->{errorString}='Failed to delete tab, "'.$tab.'", for the set, "'.
+			                 $self->{zconf}->{set}{zccron}.'". error="'.$self->{zconf}->{error}.'"';
 		$self->{error}=11;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -183,14 +211,19 @@ This gets a list of of sets for the config 'cron'.
 
 sub getSets{
 	my $self=$_[0];
+	my $function='getSets';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	my @sets=$self->{zconf}->getAvailableSets("zccron");
 	if ($self->{zconf}->{error}){
-		warn('ZConf-Cron getSets:4: Failed with a error of"'.
-			 $self->{zconf}->{error}.'"');
+		$self->{errorString}='Failed with a error of"'.$self->{zconf}->{error}.'"';
 		$self->{error}=4;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	};
 
@@ -213,32 +246,39 @@ Sets what set is being worked on. It will also read it when this is called.
 sub setSet{
 	my $self=$_[0];
 	my $set=$_[1];
+	my $function='setSet';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	if (!defined($set)){
 		my $set=$self->{zconf}->chooseSet("zccron");
 	}
 
 	if(!$self->{zconf}->setNameLegit($set)){
-		warn("ZConf-Cron setSet:2: '".$set."' is not a legit ZConf set name");
+		$self->{errorString}="'".$set."' is not a legit ZConf set name";
 		$self->{error}=2;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	$self->{zconf}->read({config=>"zccron", set=>$set});
 	if($self->{zconf}->{error}){
-		warn("ZConf-Cron setSets:3: Could not read config, set '".$set."'. It failed with '"
-			 .$self->{zconf}->{error}."', '".$self->{zconf}->{errorString}."'.");
+		$self->{errorString}="Could not read config, set '".$set."'. It failed with '"
+			                 .$self->{zconf}->{error}."', '".$self->{zconf}->{errorString}."'.";
 		$self->{error}=3;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	my @sets=$self->{zconf}->getAvailableSets("zccron");
 	if ($self->{zconf}->{error}){
-		warn('ZConf-Cron getSets:4: Failed with a error of"'.
-			 $self->{zconf}->{error}.'"');
+		$self->{errorString}='Failed with a error of"'.$self->{zconf}->{error}.'"';
 		$self->{error}=4;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	};
 
@@ -266,8 +306,13 @@ Gets a list of tabs for the current set.
 
 sub getTabs{
 	my $self=$_[0];
+	my $function='getTabs';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	my @matched = $self->{zconf}->regexVarSearch("zccron", "^tabs/");
 
@@ -294,15 +339,21 @@ Gets a specified tab.
 sub readTab{
 	my $self=$_[0];
 	my $tab=$_[1];
+	my $function='readTab';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	$tab='tabs/'.$tab;
 
 	#errors if the tab is not defined
 	if (!defined($self->{zconf}->{conf}{zccron}{$tab})){
-		warn('ZConf-Cron readTab:5: The tab "'.$tab.'" is not defined');
+		$self->{errorString}='The tab "'.$tab.'" is not defined';
 		$self->{error}=5;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -322,14 +373,19 @@ This saves the currently loaded set.
 
 sub save{
 	my $self=$_[0];
+	my $function='save';
 
 	$self->errorblank();
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	#tries to save it and error upon failure
 	if (!$self->{zconf}->writeSetFromLoadedConfig("zccron")){
-		warn('ZConf-Cron save:7: Save failed with "'
-			 .$self->{zconf}->{error}.'"');
+		$self->{errorString}='Save failed with "'.$self->{zconf}->{error}.'"';
 		$self->{error}=7;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
@@ -360,28 +416,48 @@ sub writeTab{
 	my $self=$_[0];
 	my $tab=$_[1];
 	my $value=$_[2];
+	my $function='writeTab';
 
 	$self->errorblank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
 
 	if (!defined($value)){
-		warn("ZConf-Cron writeTab: No value specified for the value of the tab.");
+		$self->{errorString}="No value specified for the value of the tab.";
 		$self->{error}=6;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
 	if($self->{zconf}->varNameCheck($tab)){
-		warn("ZConf-Cron writeTab:2: '".$tab."' is not a legit ZConf variable name");
+		$self->{errorString}="'".$tab."' is not a legit ZConf variable name";
 		$self->{error}=2;
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
 		return undef;
 	}
 
-	$self->{zconf}->{conf}{zccron}{$tab}=$value;
+	#$self->{zconf}->{conf}{zccron}{'tabs/'.$tab}=$value;
+	$tab='tabs/'.$tab;
+	$self->{zconf}->setVar('zccron', $tab , $value);
+	if ($self->{zconf}->{error}) {
+		$self->{error}=12;
+		$self->{errorString}='setVar failed. error="'.$self->{zconf}->{error}.'" errorString="'.$self->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
 
+	#saves it
 	$self->{zconf}->writeSetFromLoadedConfig({config=>'zccron'});
 	if ($self->{zconf}->{error}){
-		warn('ZConf-Cron writeTab:10: Could not write ZConf config "zccron". It errored with "'.
-			 $self->{zconf}->{error}.'"');
+		$self->{error}=10;
+		$self->{errorString}='setVar failed. error="'.$self->{zconf}->{error}.'" errorString="'.$self->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
 	}
+
+	print "saved\n";
 
 	return 1;
 }
@@ -400,7 +476,11 @@ It does the following.
 #blanks the error flags
 sub errorblank{
 	my $self=$_[0];
-		
+
+	if ($self->{perror}) {
+		return undef;
+	}
+
 	$self->{error}=undef;
 	$self->{errorString}="";
 	
@@ -458,6 +538,10 @@ Failed to delete the set.
 =head2 11
 
 Failed to delete the tab.
+
+=head2 12
+
+Failed to write the tab to ZConf.
 
 =head1 AUTHOR
 

@@ -1,5 +1,9 @@
 Revision history for ZConf-Cron
 
+1.0.1	2009-10-24/00:40
+		-More cleanup.
+		-Writetab now works.
+
 1.0.0	2009-10-11/23:30
 		-Misc cleanups.
 		-Add ZConf::Cron::GUI.
