@@ -10,11 +10,11 @@ ZConf::Cron - Handles storing cron tabs in ZConf.
 
 =head1 VERSION
 
-Version 1.0.1
+Version 1.1.0
 
 =cut
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.1.0';
 
 =head1 SYNOPSIS
 
@@ -325,6 +325,44 @@ sub getTabs{
 	return @matched;
 }
 
+=head2 readSet
+
+This reads the specified set or rereads the current one.
+
+One arguement is taken is the name of the set.
+
+    $zccron->readSet($set);
+    if($zccron->{error}){
+        print "Error!\n";
+    }
+
+=cut
+
+sub readSet{
+	my $self=$_[0];
+	my $set=$_[1];
+	my $function='readSet';
+
+	#blanks any previous errors
+	$self->errorBlank;
+	if ($self->{error}) {
+		warn($self->{module}.' '.$function.': A permanent error is set');
+		return undef;
+	}
+
+	$self->{zconf}->read({config=>'zccron', set=>$set});
+	if ($self->{zconf}->{error}) {
+		$self->{error}=3;
+		$self->{errorString}='ZConf error reading the config "zccron".'.
+		                     ' ZConf error="'.$self->{zconf}->{error}.'" '.
+		                     'ZConf error string="'.$self->{zconf}->{errorString}.'"';
+		warn($self->{module}.' '.$function.':'.$self->{error}.': '.$self->{errorString});
+		return undef;
+	}
+
+	return 1;
+}
+
 =head2 readTab
 
 Gets a specified tab.
@@ -579,6 +617,10 @@ L<http://cpanratings.perl.org/d/ZConf-Cron>
 =item * Search CPAN
 
 L<http://search.cpan.org/dist/ZConf-Cron>
+
+=item * SVN
+
+L<http://eesdp.org/svnweb/index.cgi/pubsvn/browse/Perl/ZConf%3A%3ACron>
 
 =back
 

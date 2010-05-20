@@ -1,5 +1,9 @@
 Revision history for ZConf-Cron
 
+1.1.0	2010-05-20/03:00
+		-Add 'readSet'.
+		-Correct dependencies in "Makefile.PL".
+
 1.0.1	2009-10-24/00:40
 		-More cleanup.
 		-Writetab now works.
