@@ -4,6 +4,7 @@ use warnings;
 use strict;
 use ZConf::Cron;
 use ZConf::GUI;
+use base 'Error::Helper';
 
 =head1 NAME
 
@@ -11,11 +12,11 @@ ZConf::Cron::GUI - Implements a GUI for ZConf::Cron.
 
 =head1 VERSION
 
-Version 0.0.0
+Version 0.1.0
 
 =cut
 
-our $VERSION = '0.0.0';
+our $VERSION = '0.1.0';
 
 =head1 SYNOPSIS
 
@@ -64,14 +65,14 @@ sub new{
 	}
 
 	#handles it if initializing ZConf::Runner failed
-	if ($self->{zcc}->{error}) {
-		my $errorstring=$self->{zcc}->{errorString};
+	if ($self->{zcc}->error) {
+		my $errorstring=$self->{zcc}->errorString;
 		$errorstring=~s/\"/\\\"/g;
-		my $error='Initializing ZConf::Cron failed. error="'.$self->{zcc}->{error}
-		          .'" errorString="'.$self->{zcc}->{errorString}.'"';
+		my $error='Initializing ZConf::Cron failed. error="'.$self->{zcc}->error
+		          .'" errorString="'.$self->{zcc}->errorString.'"';
 	    $self->{error}=3;
 		$self->{errorString}=$error;
-		warn('ZConf-Cron-GUI new:3: '.$error);
+		$self->warn;
 		return $self;		
 	}
 
@@ -79,21 +80,20 @@ sub new{
 
 	if (!defined($args{zcgui})) {
 		#initializes the GUI
-		$self->{gui}=ZConf::GUI->new({zconf=>$self->{zconf}});
-		if ($self->{gui}->{error}) {
-			my $errorstring=$self->{gui}->{errorString};
+		$self->{gui}=ZConf::GUI->new({zconf=>$self->zconf});
+		if ($self->{gui}->error) {
+			my $errorstring=$self->{gui}->errorString;
 			$errorstring=~s/\"/\\\"/g;
-			my $error='Initializing ZConf::GUI failed. error="'.$self->{gui}->{error}
-		          .'" errorString="'.$self->{gui}->{errorString}.'"';
+			my $error='Initializing ZConf::GUI failed. error="'.$self->{gui}->error
+				.'" errorString="'.$self->{gui}->errorString.'"';
 			$self->{error}=2;
 			$self->{errorString}=$error;
-			warn('ZConf-Cron-GUI new:2: '.$error);
+			$self->warn;
 			return $self;
 		}
 	}else {
 		$self->{gui}=$args{zcgui};
 	}
-
 
 	$self->{useX}=$self->{gui}->useX('ZConf::Cron');
 
@@ -102,8 +102,8 @@ sub new{
 	if (!defined($preferred[0])) {
 		$self->{perror}=1;
 		$self->{error}=4;
-		$self->{errorString}='No backends located.';
-		warn('ZConf-Cron-GUI new:4: '.$self->{errorString});
+		$self->{errorString}='No backends located';
+		$self->warn;
 	}
 
 	my $toeval='use ZConf::Cron::GUI::'.$preferred[0].';'."\n".
@@ -118,10 +118,10 @@ sub new{
 
 =head2 crontab
 
-Allows the crontabs to be edited.
+This dialog allows crontabs to be edited.
 
    $zccg->crontab;
-   if($zccg->{error}){
+   if($zccg->error){
        print "Error!\n";
    }
 
@@ -130,18 +130,16 @@ Allows the crontabs to be edited.
 sub crontab{
 	my $self=$_[0];
 
-	$self->errorblank;
-	if ($self->{error}) {
-		warn('ZConf-Cron-GUI crontab: A permanent error was set');
+	if ( ! $self->errorblank ){
 		return undef;
 	}
 
 	my $returned=$self->{be}->crontab;
-	if ($self->{be}->{error}) {
+	if ($self->{be}->error) {
 		$self->{error}=5;
-		$self->{errorString}='Backend errored. error="'.$self->{be}->{error}.
-		                     '" errorString="'.$self->{be}->{errorString}.'"';
-		warn('ZConf-Cron-GUI crontab:'.$self->{errorString});
+		$self->{errorString}='Backend errored. error="'.$self->{be}->error.
+		                     '" errorString="'.$self->{be}->errorString.'"';
+		$self->warn;
 	}
 
 	return $returned;
@@ -167,35 +165,9 @@ sub windows{
 	return ();
 }
 
-=head2 errorblank
-
-This blanks the error storage and is only meant for internal usage.
-
-It does the following.
-
-    $self->{error}=undef;
-    $self->{errorString}="";
-
-=cut
-
-#blanks the error flags
-sub errorblank{
-	my $self=$_[0];
-
-	if ($self->{perror}) {
-		warn('ZConf-Cron-GUI errorblank: A permanent error is set.');
-		return undef;
-	}
-
-	$self->{error}=undef;
-	$self->{errorString}="";
-
-	return 1;
-}
-
 =head1 DIALOGS
 
-ask
+crontab
 
 =head1 WINDOWS
 
@@ -225,7 +197,7 @@ Backend errored.
 
 =head1 AUTHOR
 
-Zane C. Bowers, C<< <vvelox at vvelox.net> >>
+Zane C. Bowers-Hadley, C<< <vvelox at vvelox.net> >>
 
 =head1 BUGS
 
@@ -271,7 +243,7 @@ L<http://search.cpan.org/dist/ZConf-Cron>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Zane C. Bowers, all rights reserved.
+Copyright 2012 Zane C. Bowers-Hadley, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

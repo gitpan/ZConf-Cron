@@ -1,5 +1,14 @@
 Revision history for ZConf-Cron
 
+2.0.0	 2012-06-09/09:00
+		 -Now uses Error::Helper.
+		 -Properly checks ZConf for errors now.
+		 -Pull the config name from within the module.
+		 -Update POD.
+		 -Use quotemeta.
+		 -The bin scripts now actually use ZConf::Cron.
+		 -Now uses Term::CallEditor.		 
+
 1.1.1	2010-05-28/05:00
 		-Correct writing of the set via the save method.
 

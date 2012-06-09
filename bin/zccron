@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-#Copyright (c) 2008, Zane C. Bowers
+#Copyright (c) 2012, Zane C. Bowers-Hadley
 #All rights reserved.
 #
 #Redistribution and use in source and binary forms, with or without modification,
@@ -22,19 +22,16 @@
 #OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 #THE POSSIBILITY OF SUCH DAMAGE.
 
-use DateTime::Event::Cron;
-use DateTime::Duration;
-use DateTime::Format::Strptime;
 use strict;
 use warnings;
 use Getopt::Std;
-use ZConf;
+use ZConf::Cron;
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
 
 #version function
 sub main::VERSION_MESSAGE {
-	print "zccron 0.0.1\n";
+	print "zccron 0.1.0\n";
 };
 
 #print help
@@ -43,29 +40,6 @@ sub main::HELP_MESSAGE {
 		"-s <zconf set>  The zconf set to use.\n".
 		"-t <tab>  The tab to use.\n\n".
 		"See 'perldoc zccron' for more info.\n";
-}
-
-#takes a cronline and runs it if it is with within a minute and 15 seconds of last and next
-sub run_cron_line{
-	my $cronline = $_[0];
-	my $now=DateTime->now;#get the time
-
-	my $dtc = DateTime::Event::Cron->new_from_cron($cronline);
-	my $next_datetime_string = $dtc->next;
-	my $last_datetime_string = $dtc->previous;
-
-	#takes the strings and make DateTime objects out of them.
-	my $time_string_parse= new DateTime::Format::Strptime(pattern=>'%FT%T');
-	my $dt_last=$time_string_parse->parse_datetime($last_datetime_string);
-	my $dt_next=$time_string_parse->parse_datetime($next_datetime_string);
-
-	#check to make sure last or next is within a minute and 15 seconds of now.
-	my $interval = DateTime::Duration->new(minutes => 1);
-
-	#if it falls within 1 minute and 15 secons of now, it runs it
-	if (within_interval($dt_last, $now, $interval) || within_interval($dt_next, $now, $interval)){		
-		system($dtc->command());
-	}
 }
 
 # within_interval is copied from http://datetime.perl.org/index.cgi?FAQSampleCalculations
@@ -93,61 +67,24 @@ if (!defined($opts{t})) {
 	$opts{t}="default";
 }
 
-#inits zconf
-my $zconf = ZConf->new();
-if($zconf->{error}){
-	warn("zccron:1: Could not initiate ZConf. It failed with '".$zconf->{error}."'".
-		", '".$zconf->{errorString}."'");
-	exit 1;
+#inits ZConf::Cron
+my $zccron=ZConf::Cron->new;
+if ( $zccron->error ){
+	exit $zccron->error;
 }
-
-#handles set checking
-if(defined($opts{s})){
-	if(!$zconf->setNameLegit($opts{s})){
-		warn("zccron:2: '".$opts{s}."' is not a legit ZConf set name");
-		exit 2;
+if ( defined( $opts{s} ) ){
+	$zccron->setSet( $opts{s} );
+	if ( $zccron->error ){
+		exit $zccron->error;
 	}
-}else{
-	$opts{s}=undef;
 }
 
-#exit if the config does not exist
-my $returned = $zconf->configExists("zccron");
-if (!$returned) {
-	warn("zccron:3: The config 'zccron' does not exist. Please use zccrontab(1)".
-		 "to create it");
-	exit 3;
+$zccron->runTab( $opts{t} );
+if ( ! $zccron->error ){
+	exit $zccron->error;
 }
 
-#read the config
-$returned = $zconf->read({config=>"zccron", set=>$opts{s}});
-if($zconf->{error}){
-	warn("zccron:4: Could not read config. It failed with '".$zconf->{error}."'".
-		", '".$zconf->{errorString}."'.");
-	exit 4;
-}
-
-my $tab='tabs/'.$opts{t};
-
-#runs the tab if it exists and exits if it does not
-if (defined($zconf->{conf}{zccron}{$tab})){
-	#splits the lines apart
-	my @lines=split(/\n/, $zconf->{conf}{zccron}{$tab});
-
-	#runs each line
-	my $linesInt=0;
-	while (defined($lines[$linesInt])){
-		if (!($lines[$linesInt] =~ /^#/)){
-			run_cron_line($lines[$linesInt]);
-		}
-
-		$linesInt++;
-	}
-	
-}else{
-	warn("zccron:5: The specified tab, '".$opts{t}."', does not exist");
-	exit 5;
-}
+exit 0;
 
 =head1 NAME
 
@@ -169,38 +106,9 @@ After running through every entry in the crontab, it then exits.
 
 You need to use the full path for specifying the command.
 
-=head1 WHY NOT CRON
-
-You can have cron open opera or the like on a specific display by either switch
-or enviromental options, but it will always open it. This allows you to open it
-any time along the point it is active.
-
-=head1 ERROR CODES
-
-=head2 1
-
-ZConf initialization error.
-
-=head2 2
-
-The specified set is not a legit ZConf set name.
-
-=head2 3
-
-The specified config config does not exist. Please use zccrontab(1) to create
-it.
-
-=head2 4
-
-Reading the config 'zccron' failed.
-
-=head2 5
-
-The specified tab does not exist.
-
 =head1 AUTHOR
 
-Copyright (c) 2008, Zame C. Bowers <vvelox@vvelox.net>
+Copyright (c) 2012, Zame C. Bowers-Hadley <vvelox@vvelox.net>
 
 All rights reserved.
 
@@ -223,24 +131,6 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=head1 Changelog
-
-=head2 2008-06-24/17:30
-
-Fix issue with it not skipping things with /^#/.
-
-=head2 2008-06-23/15:30
-
-Initial release.
-
-=head1 SCRIPT CATEGORIES
-
-Desktop
-
-=head1 OSNAMES
-
-any
 
 =head1 README
 
